@@ -8,7 +8,7 @@
 <div class="row">
     <div class="col-12">
         <h2> Create a new account </h2>
-        <EditForm Model="model"  OnSubmit="RegisterUser">
+        <EditForm Model="model" OnValidSubmit="RegisterUser">
             
             <Radzen.Blazor.RadzenCard>
                 <AlertMessage Message="@message" MessageType="@messageType"/>
@@ -37,7 +37,7 @@
                                             Disabled="isBusy"/>
                 <Radzen.Blazor.RadzenButton ButtonType="Radzen.ButtonType.Submit" Text="Login"
                                             ButtonStyle="Radzen.ButtonStyle.Secondary" class="btn-block mr-2" 
-                                            Disabled="isBusy"/>
+                                            Disabled="isBusy"Click="GotoLogin"/>
 
             </Radzen.Blazor.RadzenCard>
            
@@ -67,5 +67,10 @@
         }
         isBusy = false;
 
+    }
+
+    void GotoLogin()
+    {
+        navigationManager.NavigateTo("/auth/login");
     }
 }

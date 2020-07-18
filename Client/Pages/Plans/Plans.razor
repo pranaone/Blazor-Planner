@@ -1,0 +1,107 @@
+﻿@page "/plans"
+@page "/plans/{pageNumber:int}"
+
+@inject PlansService plansService
+@attribute [Authorize]
+
+<h3>My Plans</h3>
+@if (isBusy)
+{
+    <h2> Loading...</h2>
+}
+else
+{
+    <div class="row">
+        <RadzenTextBox Placeholder="Search Query" />
+    </div>
+    <hr />
+
+    <div class="row">
+        @foreach (var plan in plans)
+        {
+            <div class="col-4">
+                <RadzenCard Style="margin:10px">
+                    <img src="@plan.CoverPath" style="width:90%;margin:5px" />
+                    <h2>@plan.Title</h2>
+                    <p>@plan.Description</p>
+                    <div class="row">
+                        <div class="col-6">
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit" class="btn-block" />
+                        </div>
+                        <div class="col-6">
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Delete" class="btn-block" />
+                        </div>
+                    </div>
+                </RadzenCard>
+            </div>
+
+        }
+
+    </div>
+    <hr />
+
+    <div class="row">
+        @for (int i = 1; i <= totalPages; i++)
+        {
+            int page = i;
+            @if (page == PageNumber)
+            {
+                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@i.ToString()" Click="async()=> await moveToPageAsync(page)" Disabled="true" Style="margin:8px;" />
+            }
+            else
+            {
+                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@i.ToString()" Click="async()=> await moveToPageAsync(page)" Style="margin:8px;" />
+            }
+
+        }
+
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public int? PageNumber { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+
+    bool isBusy = false;
+    List<BlazorPlanner.Shared.Models.Plan> plans = new List<BlazorPlanner.Shared.Models.Plan>();
+
+    int totalPages = 1;
+
+    async Task getPlansAsync()
+    {
+        isBusy = true;
+
+        var userState = authenticationState.Result;
+        plansService.AccessToken = userState.User.FindFirst("AccessToken").Value;
+
+        if (PageNumber == null)
+            PageNumber = 1;
+        var result = await plansService.GetAllPlansByPageAsync(PageNumber.Value);
+
+        if (result.count % result.PageSize == 0)
+            totalPages = result.count / result.PageSize;
+        else
+            totalPages = (result.count / result.PageSize) + 1;
+
+        plans = result.Records.ToList();
+
+        isBusy = false;
+    }
+
+    async Task moveToPageAsync(int pageNumber)
+    {
+        PageNumber = pageNumber;
+        await getPlansAsync();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await getPlansAsync();
+    }
+
+}

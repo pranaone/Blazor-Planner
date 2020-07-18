@@ -8,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using BlazorPlanner.Shared.Services;
+using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace BlazorPlanner.Client
 {
@@ -22,6 +24,14 @@ namespace BlazorPlanner.Client
             {
                 return new AuthenticationService(URL);
             });
+            builder.Services.AddScoped<PlansService>(s =>
+            {
+                return new PlansService(URL);
+            });
+            builder.Services.AddBlazoredLocalStorage();
+            builder.Services.AddOptions(); // required for authentication
+            builder.Services.AddAuthorizationCore();//required for authentication
+            builder.Services.AddScoped<AuthenticationStateProvider, LocalAuthenticationStateProvider>(); //required for authentication
             builder.RootComponents.Add<App>("app");
 
             builder.Services.AddTransient(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
