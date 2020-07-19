@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using BlazorPlanner.Shared.Services;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
+using Tewr.Blazor.FileReader;
 
 namespace BlazorPlanner.Client
 {
@@ -27,6 +28,14 @@ namespace BlazorPlanner.Client
             builder.Services.AddScoped<PlansService>(s =>
             {
                 return new PlansService(URL);
+            });
+            builder.Services.AddScoped<ToDoItemsService>(s =>
+            {
+                return new ToDoItemsService(URL);
+            });
+            builder.Services.AddFileReaderService(options =>
+            {
+                options.UseWasmSharedBuffer = true;
             });
             builder.Services.AddBlazoredLocalStorage();
             builder.Services.AddOptions(); // required for authentication

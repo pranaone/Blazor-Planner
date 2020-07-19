@@ -2,40 +2,64 @@
 @page "/plans/{pageNumber:int}"
 
 @inject PlansService plansService
+@inject NavigationManager navigationManager
 @attribute [Authorize]
 
-<h3>My Plans</h3>
+@if (string.IsNullOrWhiteSpace(Query))
+{
+    <h2>My Plans - Page: @PageNumber</h2>
+}
+else
+{
+    <h2>My Plans - Results for '@Query' - Page: @PageNumber</h2>
+}
+
 @if (isBusy)
 {
-    <h2> Loading...</h2>
+    <h2>Loading...</h2>
 }
 else
 {
     <div class="row">
-        <RadzenTextBox Placeholder="Search Query" />
+        <RadzenTextBox Placeholder="Search Query" @bind-Value="Query" /><RadzenButton Text="Search" Click="async () => await getPlansAsync()" />
     </div>
     <hr />
 
     <div class="row">
+
         @foreach (var plan in plans)
         {
             <div class="col-4">
                 <RadzenCard Style="margin:10px">
                     <img src="@plan.CoverPath" style="width:90%;margin:5px" />
-                    <h2>@plan.Title</h2>
+                    <a href='/plans/details/@plan.Id'>@plan.Title</a>
                     <p>@plan.Description</p>
+                    <hr />
                     <div class="row">
                         <div class="col-6">
-                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit" class="btn-block" />
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit"
+                                          Click='() => navigationManager.NavigateTo($"/plans/details/{plan.Id}")'
+                                          class="btn-block" />
                         </div>
                         <div class="col-6">
-                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Delete" class="btn-block" />
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Delete" class="btn-block"
+                                          Click="() => selectPlan(plan.Id)" />
                         </div>
                     </div>
+                    @if (selectedPlanId == plan.Id)
+                    {
+                        <div class="row">
+                            <div class="col-12">
+                                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="Confirm" class="btn-block"
+                                              Click="async () => await deletePlanAsync()" Style="margin:5px;" />
+                            </div>
+                        </div>
+                    }
+
                 </RadzenCard>
             </div>
-
         }
+
 
     </div>
     <hr />
@@ -46,11 +70,11 @@ else
             int page = i;
             @if (page == PageNumber)
             {
-                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@i.ToString()" Click="async()=> await moveToPageAsync(page)" Disabled="true" Style="margin:8px;" />
+                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@i.ToString()" Click="async () => await moveToPageAsync(page)" Disabled="true" Style="margin:8px;" />
             }
             else
             {
-                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@i.ToString()" Click="async()=> await moveToPageAsync(page)" Style="margin:8px;" />
+                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@i.ToString()" Click="async () => await moveToPageAsync(page)" Style="margin:8px;" />
             }
 
         }
@@ -58,10 +82,12 @@ else
     </div>
 }
 
-
 @code {
     [Parameter]
     public int? PageNumber { get; set; }
+
+    [Parameter]
+    public string Query { get; set; }
 
     [CascadingParameter]
     private Task<AuthenticationState> authenticationState { get; set; }
@@ -70,6 +96,7 @@ else
     List<BlazorPlanner.Shared.Models.Plan> plans = new List<BlazorPlanner.Shared.Models.Plan>();
 
     int totalPages = 1;
+
 
     async Task getPlansAsync()
     {
@@ -80,12 +107,20 @@ else
 
         if (PageNumber == null)
             PageNumber = 1;
-        var result = await plansService.GetAllPlansByPageAsync(PageNumber.Value);
 
-        if (result.count % result.PageSize == 0)
-            totalPages = result.count / result.PageSize;
+        BlazorPlanner.Shared.Models.PlansCollectionPagingResponse result;
+
+        if (string.IsNullOrWhiteSpace(Query))
+            result = await plansService.GetAllPlansByPageAsync(PageNumber.Value);
         else
-            totalPages = (result.count / result.PageSize) + 1;
+            result = await plansService.SearchPlansByPageAsync(Query, PageNumber.Value);
+
+        // 50 plans | page size = 10 => 5 pages
+        // 54 plans | page size = 10 => 5 pages -> page = 4 plans
+        if (result.Count % result.PageSize == 0)
+            totalPages = result.Count / result.PageSize;
+        else
+            totalPages = (result.Count / result.PageSize) + 1;
 
         plans = result.Records.ToList();
 
@@ -96,7 +131,31 @@ else
     {
         PageNumber = pageNumber;
         await getPlansAsync();
+    }
 
+    string selectedPlanId = string.Empty;
+
+    void selectPlan(string id)
+    {
+        selectedPlanId = id;
+    }
+
+    async Task deletePlanAsync()
+    {
+        isBusy = true;
+
+        var result = await plansService.DeletePlanAsync(selectedPlanId);
+        if (result.IsSuccess)
+        {
+            var deletedPlan = plans.SingleOrDefault(p => p.Id == selectedPlanId);
+            plans.Remove(deletedPlan);
+        }
+        else
+        {
+            await getPlansAsync();
+        }
+
+        isBusy = false;
     }
 
     protected override async Task OnInitializedAsync()
